@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Tetris</title>
+  <style>
+    canvas {
+      border: 2px solid black;
+      display: block;
+      margin: 0 auto;
+      background-color: black; /* Set canvas background color to black */
+    }
+  </style>
+</head>
+<body>
+  <canvas id="tetrisCanvas" width="300" height="600"></canvas>
+  <script>
+    const canvas = document.getElementById("tetrisCanvas");
+    const ctx = canvas.getContext("2d");
+    const GRID_SIZE = 30;
+    const GRID_WIDTH = canvas.width / GRID_SIZE;
+    const GRID_HEIGHT = canvas.height / GRID_SIZE;
+    const tetrominoes = [
+      [[1, 1, 1, 1], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
+      [[1, 1], [1, 1]],
+      [[1, 1, 1], [0, 1, 0]],
+      [[1, 1, 1], [1, 0, 0]],
+      [[1, 1, 1], [0, 0, 1]],
+      [[1, 1, 1], [0, 1, 0]],
+      [[1, 1, 1], [1, 0, 0]]
+    ];
+    const tetrominoColors = [
+      "#FF0000",
+      "#00FF00",
+      "#0000FF",
+      "#FFFF00",
+      "#FF00FF",
+      "#00FFFF",
+      "#800080"
+    ];
+    let grid = Array.from({ length: GRID_HEIGHT }, () => Array(GRID_WIDTH).fill(0));
+    let currentTetromino = null;
+    let currentTetrominoColor = null;
+    let x = 3; // Adjust the starting x-coordinate
+    let y = 0;
+    let score = 0;
+    let gameSpeed = 500; // Adjust game speed in milliseconds (e.g., 500ms)
+
+    // Function to create a new tetromino
+    function newTetromino() {
+      currentTetromino = tetrominoes[Math.floor(Math.random() * tetrominoes.length)];
+      currentTetrominoColor = tetrominoColors[Math.floor(Math.random() * tetrominoColors.length)];
+      x = 3; // Adjust the starting x-coordinate
+      y = 0;
+    }
+    // Function to check for collision
+    function collide() {
+      for (let row = 0; row < currentTetromino.length; row++) {
+        for (let col = 0; col < currentTetromino[row].length; col++) {
+          if (currentTetromino[row][col]) {
+            if (
+              x + col < 0 ||
+              x + col >= GRID_WIDTH ||
+              y + row >= GRID_HEIGHT ||
+              grid[y + row][x + col]
+            ) {
+              return true;
+            }
+          }
+        }
+      }
+      return false;
+    }
+
+    // Function to place the tetromino on the grid
+    function placeTetromino() {
+      for (let row = 0; row < currentTetromino.length; row++) {
+        for (let col = 0; col < currentTetromino[row].length; col++) {
+          if (currentTetromino[row][col]) {
+            grid[y + row][x + col] = tetrominoColors.indexOf(currentTetrominoColor) + 1;
+          }
+        }
+      }
+      checkLines();
+    }
+
+    // Function to check and clear completed lines
+    function checkLines() {
+      const fullLines = [];
+      for (let row = GRID_HEIGHT - 1; row >= 0; row--) {
+        if (grid[row].every(cell => cell !== 0)) {
+          fullLines.push(row);
+        }
+      }
+      for (const row of fullLines) {
+        grid.splice(row, 1);
+        grid.unshift(Array(GRID_WIDTH).fill(0));
+        score += 10;
+      }
+    }
+
+    // Function to rotate the tetromino
+    function rotateTetromino() {
+      const rotatedTetromino = [];
+      for (let row = 0; row < currentTetromino[0].length; row++) {
+        const newRow = [];
+        for (let col = currentTetromino.length - 1; col >= 0; col--) {
+          newRow.push(currentTetromino[col][row]);
+        }
+        rotatedTetromino.push(newRow);
+      }
+      if (!collideWithOffset(0, 0, rotatedTetromino)) {
+        currentTetromino = rotatedTetromino;
+      }
+    }
+
+    // Function to draw the grid and tetromino on the canvas
+    function draw() {
+      // Clear the canvas
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      // Draw the grid
+      for (let row = 0; row < GRID_HEIGHT; row++) {
+        for (let col = 0; col < GRID_WIDTH; col++) {
+          const cell = grid[row][col];
+          if (cell) {
+            ctx.fillStyle = tetrominoColors[cell - 1];
+            ctx.fillRect(col * GRID_SIZE, row * GRID_SIZE, GRID_SIZE, GRID_SIZE);
+          }
+        }
+      }
+
+      // Draw the current tetromino
+      for (let row = 0; row < currentTetromino.length; row++) {
+        for (let col = 0; col < currentTetromino[row].length; col++) {
+          if (currentTetromino[row][col]) {
+            ctx.fillStyle = currentTetrominoColor;
+            ctx.fillRect((x + col) * GRID_SIZE, (y + row) * GRID_SIZE, GRID_SIZE, GRID_SIZE);
+          }
+        }
+      }
+    }
+
+    // Function to handle collision with an offset
+    function collideWithOffset(dx, dy, tetromino) {
+      for (let row = 0; row < tetromino.length; row++) {
+        for (let col = 0; col < tetromino[row].length; col++) {
+          if (tetromino[row][col]) {
+            const gridX = x + col + dx;
+            const gridY = y + row + dy;
+            if (
+              gridX < 0 ||
+              gridX >= GRID_WIDTH ||
+              gridY >= GRID_HEIGHT ||
+              (gridY >= 0 && gridY < GRID_HEIGHT && grid[gridY][gridX])
+            ) {
+              return true;
+            }
+          }
+        }
+      }
+      return false;
+    }
+
+    // Function to move the tetromino
+    function moveTetromino(dx, dy) {
+      if (!collideWithOffset(dx, dy, currentTetromino)) {
+        x += dx;
+        y += dy;
+      }
+    }
+
+    // Function to handle key events
+    function handleKeyPress(event) {
+      if (event.key === "ArrowLeft") {
+        moveTetromino(-1, 0);
+      } else if (event.key === "ArrowRight") {
+        moveTetromino(1, 0);
+      } else if (event.key === "ArrowDown") {
+        moveTetromino(0, 1);
+      } else if (event.key === "ArrowUp") {
+        rotateTetromino();
+      }
+    }
+
+    // Add key event listener
+    window.addEventListener("keydown", handleKeyPress);
+
+    // Start the game
+    newTetromino();
+    draw();
+
+    // Game loop
+    function gameLoop() {
+      moveTetromino(0, 1);
+      if (collide()) {
+        y -= 1;
+        placeTetromino();
+        score += 1;
+        newTetromino();
+        if (collide()) {
+          alert("Game Over! Your Score: " + score);
+          location.reload(); // Reload the page to restart the game
+        }
+      }
+
+      draw();
+      setTimeout(gameLoop, gameSpeed);
+    }
+
+    // Start the game loop
+    gameLoop();
+  </script>
+</body>
+</html>
