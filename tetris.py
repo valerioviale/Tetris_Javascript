@@ -131,5 +131,5 @@ while not game_over:
     screen.blit(text, (10, 10))
 
     pygame.display.update()
-    clock.tick(5)
+    clock.tick(3)
 pygame.quit()
